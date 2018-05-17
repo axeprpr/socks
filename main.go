@@ -2,10 +2,13 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"os/signal"
+	"os/user"
+	"strings"
 )
 
 func enableProxySettings() {
@@ -39,7 +42,44 @@ func startVPN() {
 	openSSHTunnel()
 }
 
+func help() {
+	help := `usage: socks
+
+You must have an a host named "socks.vpn" in your
+ssh config with a dynamic forward of 3333:
+
+# ~/.ssh/config
+Host socks.vpn
+  Hostname my.ip.address
+  DynamicForward 3333
+`
+
+	println(help)
+	os.Exit(0)
+}
+
+func missingSSHHost() bool {
+	usr, err := user.Current()
+	if err != nil {
+		return true
+	}
+
+	config := fmt.Sprintf("%s/.ssh/config", usr.HomeDir)
+
+	b, err := ioutil.ReadFile(config)
+	if err != nil {
+		return true
+	}
+
+	return !strings.Contains(string(b), "socks.vpn")
+}
+
 func main() {
+
+	if len(os.Args) > 1 || missingSSHHost() {
+		help()
+	}
+
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	go func() {
